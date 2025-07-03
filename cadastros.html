@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cadastros Base</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="notificacao-container"></div>
+    <div class="app-wrapper">
+      <header class="app-header">
+        <h1>Sistema de Produção - Retrabalho</h1>
+        <nav class="app-nav">
+          <a href="/apontamentos">Apontamento de Retrabalho</a
+          ><a href="/cadastros" class="active">Cadastros Base</a
+          ><a href="/dashboard">Dashboard</a>
+        </nav>
+      </header>
+      <main class="main-content">
+        <div class="container">
+          <div class="abas-cadastro">
+            <button type="button" class="aba-btn active" data-aba="operadores">
+              Operadores</button
+            ><button type="button" class="aba-btn" data-aba="produtos">
+              Produtos</button
+            ><button type="button" class="aba-btn" data-aba="setores">
+              Setores</button
+            ><button type="button" class="aba-btn" data-aba="motivos">
+              Motivos
+            </button>
+          </div>
+          <div id="conteudo-aba-operadores" class="conteudo-aba visivel">
+            <div class="secao-cadastro">
+              <h2 id="tituloFormOp">Gerenciar Operadores</h2>
+              <form id="form-operador" class="form-cadastro-base">
+                <input type="hidden" id="hdnMatriculaOriginal" /><input
+                  type="text"
+                  id="txtOpMatricula"
+                  placeholder="Matrícula"
+                  required
+                /><input
+                  type="text"
+                  id="txtOpNome"
+                  placeholder="Nome do Operador"
+                  required
+                  style="flex-grow: 3"
+                />
+                <div class="botoes-form-base">
+                  <button type="submit" id="btnSalvarOp">Adicionar</button
+                  ><button
+                    type="button"
+                    id="btnCancelarOp"
+                    class="btn-limpar oculto"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </div>
+            <div class="tabela-wrapper-simples">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Matrícula</th>
+                    <th>Nome</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="corpoTabelaOperadores"></tbody>
+              </table>
+            </div>
+          </div>
+          <div id="conteudo-aba-produtos" class="conteudo-aba">
+            <div class="secao-cadastro">
+              <h2>Produtos Cadastrados</h2>
+              <p>
+                A gestão de produtos é feita através da importação do arquivo
+                CSV (<code>importar_retrabalho.py</code>).
+              </p>
+            </div>
+            <div class="tabela-visualizacao-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Cód. Entrada</th>
+                    <th>Cód. Saída</th>
+                    <th>Descrição</th>
+                    <th>Beneficiamento</th>
+                    <th>Und.</th>
+                  </tr>
+                </thead>
+                <tbody id="corpoTabelaProdutos"></tbody>
+              </table>
+            </div>
+            <div class="paginacao-controles" id="paginacao-produtos">
+              <button type="button" id="btnProdPaginaAnterior" disabled>
+                « Anterior</button
+              ><span id="infoPaginaProd">Página - de -</span
+              ><button type="button" id="btnProdProximaPagina" disabled>
+                Próxima »
+              </button>
+            </div>
+          </div>
+          <div id="conteudo-aba-setores" class="conteudo-aba">
+            <div class="secao-cadastro">
+              <h2 id="tituloFormSetor">Gerenciar Setores</h2>
+              <form id="form-setor" class="form-cadastro-base">
+                <input type="hidden" id="hdnCodigoOriginalSetor" /><input
+                  type="text"
+                  id="txtSetorCodigo"
+                  placeholder="Código do Setor"
+                  required
+                /><input
+                  type="text"
+                  id="txtSetorNome"
+                  placeholder="Nome do Setor"
+                  required
+                  style="flex-grow: 3"
+                />
+                <div class="botoes-form-base">
+                  <button type="submit" id="btnSalvarSetor">Adicionar</button
+                  ><button
+                    type="button"
+                    id="btnCancelarSetor"
+                    class="btn-limpar oculto"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </div>
+            <div class="tabela-wrapper-simples">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Código</th>
+                    <th>Nome</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="corpoTabelaSetores"></tbody>
+              </table>
+            </div>
+          </div>
+          <div id="conteudo-aba-motivos" class="conteudo-aba">
+            <div class="secao-cadastro">
+              <h2 id="tituloFormMotivo">Gerenciar Motivos</h2>
+              <form id="form-motivo" class="form-cadastro-base">
+                <input type="hidden" id="hdnIdOriginalMotivo" /><input
+                  type="number"
+                  id="txtMotivoId"
+                  placeholder="ID do Motivo"
+                  required
+                /><input
+                  type="text"
+                  id="txtMotivoDescricao"
+                  placeholder="Descrição do Motivo"
+                  required
+                  style="flex-grow: 3"
+                />
+                <div class="botoes-form-base">
+                  <button type="submit" id="btnSalvarMotivo">Adicionar</button
+                  ><button
+                    type="button"
+                    id="btnCancelarMotivo"
+                    class="btn-limpar oculto"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </div>
+            <div class="tabela-wrapper-simples">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Descrição do Motivo</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="corpoTabelaMotivos"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="script.js"></script>
+  </body>
+</html>

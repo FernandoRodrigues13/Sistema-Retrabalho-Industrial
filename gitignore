@@ -1,0 +1,22 @@
+# Ambiente Virtual Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Banco de Dados SQLite (geralmente não se versiona o arquivo de dados em si,
+# mas sim o schema e scripts de migração, se houver)
+*.db
+*.sqlite
+*.sqlite3
+producao.db # Especificamente o seu arquivo de banco de dados
+producao_teste_fundamental.db # E o de teste
+
+# Arquivos de IDE/Editor (Exemplos para VS Code)
+.vscode/
+*.code-workspace
+
+# Arquivos de Sistema Operacional
+.DS_Store
+Thumbs.db

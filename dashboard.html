@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard - Sistema de Produção</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="notificacao-container"></div>
+    <div class="app-wrapper">
+      <header class="app-header">
+        <h1>Sistema de Produção - Retrabalho</h1>
+        <nav class="app-nav">
+          <a href="/apontamentos">Apontamento de Retrabalho</a
+          ><a href="/cadastros">Cadastros Base</a
+          ><a href="/dashboard" class="active">Dashboard</a>
+        </nav>
+      </header>
+      <main class="main-content">
+        <div class="container">
+          <h2>Dashboard de Produção de Retrabalho</h2>
+          <div class="filtros-dashboard">
+            <div>
+              <label for="filtroPeriodoDashboard">Período:</label
+              ><select id="filtroPeriodoDashboard">
+                <option value="hoje" selected>Hoje</option>
+                <option value="ultimos7dias">Últimos 7 dias</option>
+                <option value="mesAtual">Mês Atual</option>
+                <option value="personalizado">Personalizado</option>
+              </select>
+            </div>
+            <div id="rangePersonalizado" class="oculto">
+              <div>
+                <label for="txtDataDashboardDe">De:</label
+                ><input type="date" id="txtDataDashboardDe" />
+              </div>
+              <div>
+                <label for="txtDataDashboardAte">Até:</label
+                ><input type="date" id="txtDataDashboardAte" />
+              </div>
+            </div>
+            <div>
+              <button type="button" id="btnAtualizarDashboard">
+                Atualizar
+              </button>
+            </div>
+          </div>
+          <div class="dashboard-grid" id="kpi-cards-container">
+            <div class="card">
+              <h3 class="kpi-titulo">Total de Apontamentos</h3>
+              <div class="valor" id="kpiTotalApontamentos">--</div>
+            </div>
+            <div class="card">
+              <h3 class="kpi-titulo">Quantidade Retrabalhada</h3>
+              <div class="valor" id="kpiQuantidadeProduzida">--</div>
+            </div>
+            <div class="card">
+              <h3 class="kpi-titulo">Operadores Ativos</h3>
+              <div class="valor" id="kpiOperadoresAtivos">--</div>
+            </div>
+          </div>
+          <hr />
+          <div class="dashboard-grid-graficos">
+            <div class="chart-container">
+              <h3>Produção por Setor</h3>
+              <canvas id="graficoProducaoSetor"></canvas>
+            </div>
+            <div class="chart-container">
+              <h3>Top 5 Produtos Retrabalhados</h3>
+              <canvas id="graficoTopProdutos"></canvas>
+            </div>
+            <div class="chart-container">
+              <h3>Produção por Turno</h3>
+              <canvas id="graficoProducaoTurno"></canvas>
+            </div>
+          </div>
+          <divdiv
+            class="dashboard-grid-graficos"
+            style="grid-template-columns: 1fr"
+          >
+            <div class="chart-container" style="height: 350px">
+              <h3>Tendência Diária de Retrabalho</h3>
+              <canvas id="graficoProducaoDiaria"></canvas>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

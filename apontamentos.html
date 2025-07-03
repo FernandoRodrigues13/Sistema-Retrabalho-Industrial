@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Apontamento de Retrabalho</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="notificacao-container"></div>
+    <div class="app-wrapper">
+      <header class="app-header">
+        <h1>Sistema de Produção - Retrabalho</h1>
+        <nav class="app-nav">
+          <a href="/apontamentos" class="active">Apontamento de Retrabalho</a
+          ><a href="/cadastros">Cadastros Base</a
+          ><a href="/dashboard">Dashboard</a>
+        </nav>
+      </header>
+      <main class="main-content">
+        <div class="container">
+          <div class="secao" id="secao-cadastro-retrabalho">
+            <h2>Registrar Novo Retrabalho</h2>
+            <form id="form-retrabalho">
+              <input type="hidden" id="hdnApontamentoId" />
+              <div class="linha-formulario">
+                <div class="campo-individual">
+                  <label for="txtMatriculaOperador">Matrícula Operador</label
+                  ><input type="text" id="txtMatriculaOperador" />
+                </div>
+                <div class="campo-individual" style="flex-grow: 2">
+                  <label for="txtNomeOperador">Nome Operador</label
+                  ><input type="text" id="txtNomeOperador" readonly />
+                </div>
+              </div>
+              <div class="linha-formulario">
+                <div class="campo-individual">
+                  <label for="txtIdProduto">ID Produto</label
+                  ><input type="number" id="txtIdProduto" />
+                </div>
+                <div class="campo-individual">
+                  <label for="txtCodEntrada">Cód. Entrada</label
+                  ><input type="text" id="txtCodEntrada" readonly />
+                </div>
+                <div class="campo-individual">
+                  <label for="txtCodSaida">Cód. Saída</label
+                  ><input type="text" id="txtCodSaida" readonly />
+                </div>
+                <div class="campo-individual" style="flex-grow: 2">
+                  <label for="txtDescricao">Descrição</label
+                  ><input type="text" id="txtDescricao" readonly />
+                </div>
+              </div>
+              <div class="linha-formulario">
+                <div class="campo-individual">
+                  <label for="txtBeneficiamento">Beneficiamento</label
+                  ><input type="text" id="txtBeneficiamento" readonly />
+                </div>
+                <div class="campo-individual campo-curto">
+                  <label for="txtUnidade">Und.</label
+                  ><input type="text" id="txtUnidade" readonly />
+                </div>
+                <div class="campo-individual">
+                  <label for="txtIdSetor">ID Setor</label
+                  ><input type="text" id="txtIdSetor" />
+                </div>
+                <div class="campo-individual" style="flex-grow: 2">
+                  <label for="txtNomeSetor">Nome do Setor</label
+                  ><input type="text" id="txtNomeSetor" readonly />
+                </div>
+              </div>
+              <div class="linha-formulario">
+                <div class="campo-individual">
+                  <label for="txtIdMotivo">ID Motivo</label
+                  ><input type="number" id="txtIdMotivo" />
+                </div>
+                <div class="campo-individual" style="flex-grow: 2">
+                  <label for="txtNomeMotivo">Descrição do Motivo</label
+                  ><input type="text" id="txtNomeMotivo" readonly />
+                </div>
+                <div class="campo-individual campo-medio">
+                  <label for="txtQuantidadeRetrabalho">Quantidade</label
+                  ><input type="number" id="txtQuantidadeRetrabalho" />
+                </div>
+              </div>
+              <div class="botoes-acao">
+                <button type="button" id="btnSalvarApontamento">
+                  Registrar</button
+                ><button
+                  type="button"
+                  id="btnLimparFormulario"
+                  class="btn-limpar"
+                >
+                  Limpar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+        <div class="container">
+          <div class="secao">
+            <h2>Histórico de Apontamentos</h2>
+            <div class="filtros">
+              <div class="campo-grupo-filtro">
+                <label for="txtFiltroDataDe">Data De:</label
+                ><input type="date" id="txtFiltroDataDe" />
+              </div>
+              <div class="campo-grupo-filtro">
+                <label for="txtFiltroDataAte">Até:</label
+                ><input type="date" id="txtFiltroDataAte" />
+              </div>
+              <div class="campo-grupo-filtro">
+                <label for="txtFiltroIdProduto">ID do Produto:</label
+                ><input type="number" id="txtFiltroIdProduto" />
+              </div>
+              <div class="botoes-acao-filtro">
+                <button type="button" id="btnAplicarFiltro">Filtrar</button
+                ><button type="button" id="btnLimparFiltros" class="btn-limpar">
+                  Limpar</button
+                ><button type="button" id="btnExportarCSV" class="btn-exportar">
+                  Exportar CSV
+                </button>
+              </div>
+            </div>
+            <div class="tabela-visualizacao-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Hora</th>
+                    <th>Turno</th>
+                    <th>Operador</th>
+                    <th>Cód. Entrada</th>
+                    <th>Descrição</th>
+                    <th>Setor</th>
+                    <th>Motivo</th>
+                    <th>Qtd.</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="corpoTabelaApontamentos"></tbody>
+              </table>
+            </div>
+            <div class="paginacao-controles">
+              <button type="button" id="btnPaginaAnterior" disabled>
+                « Anterior</button
+              ><span id="infoPagina">Página - de -</span
+              ><button type="button" id="btnProximaPagina" disabled>
+                Próxima »
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="script.js"></script>
+  </body>
+</html>
