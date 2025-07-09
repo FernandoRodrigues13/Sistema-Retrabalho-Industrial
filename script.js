@@ -1,54 +1,69 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // --- FUNÇÕES GLOBAIS (sem alterações) ---
+    // --- FUNÇÕES GLOBAIS ---
     const notificacaoContainer = document.getElementById('notificacao-container');
     function mostrarNotificacao(mensagem, tipo = 'info', duracao = 3500) { if (!notificacaoContainer) return; const notificacaoDiv = document.createElement('div'); notificacaoDiv.className = `notificacao ${tipo}`; notificacaoDiv.innerHTML = `<span>${mensagem}</span><button class="fechar-notificacao" aria-label="Fechar">×</button>`; notificacaoDiv.querySelector('.fechar-notificacao').onclick = () => removerNotificacao(notificacaoDiv); notificacaoContainer.appendChild(notificacaoDiv); requestAnimationFrame(() => { notificacaoDiv.classList.add('mostrar'); }); setTimeout(() => removerNotificacao(notificacaoDiv), duracao); }
     function removerNotificacao(notificacaoDiv) { if (!notificacaoDiv || !notificacaoDiv.parentElement) return; notificacaoDiv.classList.remove('mostrar'); notificacaoDiv.classList.add('saindo'); notificacaoDiv.addEventListener('transitionend', () => { if (notificacaoDiv.parentElement) { notificacaoDiv.remove(); } }, { once: true }); }
-    async function buscarDados(url) { try { const response = await fetch(url); if (!response.ok) { const errorData = await response.json().catch(() => ({ erro: 'Erro desconhecido.' })); throw new Error(errorData.erro); } return await response.json(); } catch (error) { throw new Error(error.message || 'Erro de conexão.'); } }
-
-    // --- ROTEADOR DE PÁGINA ---
-    const path = window.location.pathname;
-    if (path.includes('/cadastros')) {
-        initCadastros();
-    } else if (path.includes('/dashboard')) {
-        initDashboard();
-    } else {
-        initApontamentos();
+    
+    // --- FUNÇÃO DE FETCH ATUALIZADA ---
+    async function buscarDados(url) {
+      try {
+        const response = await fetch(url);
+        if (response.status === 401) {
+          // Sessão expirou ou não está logado, redireciona para a página de login
+          window.location.href = '/login';
+          return; // Para a execução
+        }
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ erro: 'Erro desconhecido.' }));
+          throw new Error(errorData.erro);
+        }
+        return await response.json();
+      } catch (error) {
+        throw new Error(error.message || 'Erro de conexão.');
+      }
     }
 
-    // --- LÓGICA DA PÁGINA DE APONTAMENTOS (sem alterações) ---
+    // --- NOVA FUNÇÃO PARA VERIFICAR LOGIN E ATUALIZAR HEADER ---
+    async function verificarStatusLogin() {
+        const nomeUsuarioSpan = document.getElementById('nome-usuario-logado');
+        if (!nomeUsuarioSpan) return; // Se não houver o span, estamos na página de login
+
+        try {
+            const userInfo = await buscarDados('/api/user/info');
+            if (userInfo && userInfo.nome) {
+                nomeUsuarioSpan.textContent = `Olá, ${userInfo.nome}`;
+            } else {
+                window.location.href = '/logout';
+            }
+        } catch (error) {
+            console.error("Erro ao buscar informações do usuário:", error);
+            window.location.href = '/login';
+        }
+    }
+    
+    // --- LÓGICA DE INICIALIZAÇÃO ---
+    const path = window.location.pathname;
+    
+    if (!path.includes('/login')) {
+        // Se não for a página de login, verifica o status do login primeiro.
+        verificarStatusLogin().then(() => {
+            // Depois de verificar, inicializa a lógica da página correta
+            if (path.includes('/cadastros')) {
+                initCadastros();
+            } else if (path.includes('/dashboard')) {
+                initDashboard();
+            } else { // Página padrão é apontamentos
+                initApontamentos();
+            }
+        });
+    }
+
+    // --- INICIALIZAÇÃO DA PÁGINA DE APONTAMENTOS ---
     function initApontamentos() {
-        const hdnApontamentoId = document.getElementById('hdnApontamentoId');
-        const txtMatricula = document.getElementById('txtMatriculaOperador');
-        const txtNomeOperador = document.getElementById('txtNomeOperador');
-        const txtIdProduto = document.getElementById('txtIdProduto');
-        const txtCodEntrada = document.getElementById('txtCodEntrada');
-        const txtDescricao = document.getElementById('txtDescricao');
-        const txtCodSaida = document.getElementById('txtCodSaida');
-        const txtBeneficiamento = document.getElementById('txtBeneficiamento');
-        const txtUnidade = document.getElementById('txtUnidade');
-        const txtIdSetor = document.getElementById('txtIdSetor');
-        const txtNomeSetor = document.getElementById('txtNomeSetor');
-        const txtIdMotivo = document.getElementById('txtIdMotivo');
-        const txtNomeMotivo = document.getElementById('txtNomeMotivo');
-        const txtQuantidade = document.getElementById('txtQuantidadeRetrabalho');
-        const btnSalvarApontamento = document.getElementById('btnSalvarApontamento');
-        const btnLimparFormulario = document.getElementById('btnLimparFormulario');
-        const corpoTabela = document.getElementById('corpoTabelaApontamentos');
-        const infoPagina = document.getElementById('infoPagina');
-        const btnPaginaAnterior = document.getElementById('btnPaginaAnterior');
-        const btnProximaPagina = document.getElementById('btnProximaPagina');
-        const filtroDataDe = document.getElementById('txtFiltroDataDe');
-        const filtroDataAte = document.getElementById('txtFiltroDataAte');
-        const filtroIdProduto = document.getElementById('txtFiltroIdProduto');
-        const btnAplicarFiltro = document.getElementById('btnAplicarFiltro');
-        const btnLimparFiltros = document.getElementById('btnLimparFiltros');
-        const btnExportarCSV = document.getElementById('btnExportarCSV');
-        let estadoPagina = { atual: 1, itensPorPagina: 20 };
-        let filtrosAtuais = {};
-        let modoEdicao = false;
-        
+        const hdnApontamentoId = document.getElementById('hdnApontamentoId'); const txtMatricula = document.getElementById('txtMatriculaOperador'); const txtNomeOperador = document.getElementById('txtNomeOperador'); const txtIdProduto = document.getElementById('txtIdProduto'); const txtCodEntrada = document.getElementById('txtCodEntrada'); const txtDescricao = document.getElementById('txtDescricao'); const txtCodSaida = document.getElementById('txtCodSaida'); const txtBeneficiamento = document.getElementById('txtBeneficiamento'); const txtUnidade = document.getElementById('txtUnidade'); const txtIdSetor = document.getElementById('txtIdSetor'); const txtNomeSetor = document.getElementById('txtNomeSetor'); const txtIdMotivo = document.getElementById('txtIdMotivo'); const txtNomeMotivo = document.getElementById('txtNomeMotivo'); const txtQuantidade = document.getElementById('txtQuantidadeRetrabalho'); const btnSalvarApontamento = document.getElementById('btnSalvarApontamento'); const btnLimparFormulario = document.getElementById('btnLimparFormulario'); const corpoTabela = document.getElementById('corpoTabelaApontamentos'); const infoPagina = document.getElementById('infoPagina'); const btnPaginaAnterior = document.getElementById('btnPaginaAnterior'); const btnProximaPagina = document.getElementById('btnProximaPagina'); const filtroDataDe = document.getElementById('txtFiltroDataDe'); const filtroDataAte = document.getElementById('txtFiltroDataAte'); const filtroIdProduto = document.getElementById('txtFiltroIdProduto'); const btnAplicarFiltro = document.getElementById('btnAplicarFiltro'); const btnLimparFiltros = document.getElementById('btnLimparFiltros'); const btnExportarCSV = document.getElementById('btnExportarCSV');
+        let estadoPagina = { atual: 1, itensPorPagina: 20 }, filtrosAtuais = {}, modoEdicao = false;
         const camposFluxo = [txtMatricula, txtIdProduto, txtIdSetor, txtIdMotivo, txtQuantidade, btnSalvarApontamento];
-        function focarProximoCampo(campoAtual) { const indexAtual = camposFluxo.indexOf(campoAtual); if (indexAtual > -1 && indexAtual < camposFluxo.length - 1) { camposFluxo[indexAtual + 1].focus(); } }
+        function focarProximoCampo(campoAtual) { const i = camposFluxo.indexOf(campoAtual); if (i > -1 && i < camposFluxo.length - 1) { camposFluxo[i + 1].focus(); } }
         function limparFormularioApontamento() { document.getElementById('form-retrabalho').reset(); [txtNomeOperador, txtCodEntrada, txtDescricao, txtCodSaida, txtBeneficiamento, txtUnidade, txtNomeSetor, txtNomeMotivo].forEach(el => { if (el) el.value = ''; }); if (hdnApontamentoId) hdnApontamentoId.value = ''; modoEdicao = false; document.querySelector('#secao-cadastro-retrabalho h2').textContent = 'Registrar Novo Retrabalho'; btnSalvarApontamento.textContent = 'Registrar'; btnLimparFormulario.textContent = 'Limpar'; if (txtMatricula) txtMatricula.focus(); }
         async function buscarOperador() { if (txtNomeOperador) txtNomeOperador.value = ''; if (!txtMatricula.value) return; try { const data = await buscarDados(`/api/operador/${txtMatricula.value.trim()}`); txtNomeOperador.value = data.nome; focarProximoCampo(txtMatricula); } catch (error) { mostrarNotificacao(error.message, 'erro'); } }
         async function buscarProdutoPorId() { [txtCodEntrada, txtDescricao, txtCodSaida, txtBeneficiamento, txtUnidade].forEach(el => { if (el) el.value = '' }); if (!txtIdProduto.value) return; try { const data = await buscarDados(`/api/produto/${txtIdProduto.value.trim()}`); if(txtCodEntrada) txtCodEntrada.value = data.cod_entrada || ''; if(txtDescricao) txtDescricao.value = data.descricao || ''; if(txtCodSaida) txtCodSaida.value = data.cod_saida || ''; if(txtBeneficiamento) txtBeneficiamento.value = data.beneficiamento || ''; if(txtUnidade) txtUnidade.value = data.und || ''; focarProximoCampo(txtIdProduto); } catch (error) { mostrarNotificacao(error.message, 'erro'); } }
@@ -75,11 +90,9 @@ document.addEventListener('DOMContentLoaded', function() {
         configurarFluxoEnter();
     }
     
-    // --- LÓGICA DA PÁGINA DE CADASTROS BASE ---
+    // --- INICIALIZAÇÃO DA PÁGINA DE CADASTROS ---
     function initCadastros() {
-        console.log("Inicializando scripts da página de Cadastros...");
-        const abasBtn = document.querySelectorAll('.aba-btn');
-        const conteudosAbas = document.querySelectorAll('.conteudo-aba');
+        const abasBtn = document.querySelectorAll('.aba-btn'); const conteudosAbas = document.querySelectorAll('.conteudo-aba');
         abasBtn.forEach(btn => {
             btn.addEventListener('click', () => {
                 abasBtn.forEach(b => b.classList.remove('active')); btn.classList.add('active');
@@ -98,28 +111,16 @@ document.addEventListener('DOMContentLoaded', function() {
         formOp.addEventListener('submit', async (e) => { e.preventDefault(); const matriculaOriginal = hdnMatriculaOriginal.value; const ehEdicao = !!matriculaOriginal; const url = ehEdicao ? `/api/operadores/${matriculaOriginal}` : '/api/operadores'; const method = ehEdicao ? 'PUT' : 'POST'; try { const response = await fetch(url, { method: method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ matricula: txtOpMatricula.value, nome: txtOpNome.value }) }); const resultado = await response.json(); mostrarNotificacao(resultado.mensagem || resultado.erro, response.ok ? 'sucesso' : 'erro'); if (response.ok) { limparFormOp(); carregarOperadores(); } } catch (error) { mostrarNotificacao('Erro de conexão.', 'erro'); } });
         tabelaOp.addEventListener('click', (e) => { if (e.target.classList.contains('btn-editar')) { const matricula = e.target.dataset.matricula; const nome = e.target.dataset.nome; hdnMatriculaOriginal.value = matricula; txtOpMatricula.value = matricula; txtOpNome.value = nome; tituloFormOp.textContent = `Editando Operador: ${matricula}`; btnSalvarOp.textContent = 'Salvar'; btnCancelarOp.classList.remove('oculto'); txtOpMatricula.readOnly = true; } if (e.target.classList.contains('btn-excluir')) { const matricula = e.target.dataset.matricula; if (confirm(`Tem certeza?`)) { fetch(`/api/operadores/${matricula}`, { method: 'DELETE' }).then(r => r.json()).then(res => { mostrarNotificacao(res.mensagem || res.erro, res.erro ? 'erro' : 'sucesso'); carregarOperadores(); }); } } });
         if(btnCancelarOp) btnCancelarOp.addEventListener('click', limparFormOp);
-
         const tabelaProd = document.getElementById('corpoTabelaProdutos'); const paginacaoProdContainer = document.getElementById('paginacao-produtos'); const infoPaginaProd = document.getElementById('infoPaginaProd'); const btnProdPaginaAnterior = document.getElementById('btnProdPaginaAnterior'); const btnProdProximaPagina = document.getElementById('btnProdProximaPagina'); let estadoPaginaProd = { atual: 1 };
-        async function carregarProdutos(pagina = 1) {
-            if (!tabelaProd) return;
-            tabelaProd.innerHTML = `<tr><td colspan="6" class="celula-mensagem-tabela">Carregando produtos...</td></tr>`;
-            try {
-                const data = await buscarDados(`/api/produtos?page=${pagina}`);
-                tabelaProd.innerHTML = '';
-                if (!data.items || data.items.length === 0) { tabelaProd.innerHTML = `<tr><td colspan="6" class="celula-mensagem-tabela">Nenhum produto encontrado.</td></tr>`; paginacaoProdContainer.style.display = 'none'; } 
-                else { paginacaoProdContainer.style.display = 'flex'; data.items.forEach(p => { tabelaProd.innerHTML += `<tr><td>${p.id}</td><td>${p.cod_entrada}</td><td>${p.cod_saida || ''}</td><td>${p.descricao}</td><td>${p.beneficiamento || ''}</td><td>${p.und}</td></tr>`; }); estadoPaginaProd.atual = data.current_page; infoPaginaProd.textContent = `Página ${data.current_page} de ${data.total_pages}`; btnProdPaginaAnterior.disabled = !data.has_prev; btnProdProximaPagina.disabled = !data.has_next; }
-            } catch (error) { mostrarNotificacao(error.message, 'erro'); tabelaProd.innerHTML = `<tr><td colspan="6" class="celula-mensagem-tabela">Erro ao carregar produtos.</td></tr>`; }
-        }
+        async function carregarProdutos(pagina = 1) { if (!tabelaProd) return; tabelaProd.innerHTML = `<tr><td colspan="6" class="celula-mensagem-tabela">Carregando produtos...</td></tr>`; try { const data = await buscarDados(`/api/produtos?page=${pagina}`); tabelaProd.innerHTML = ''; if (!data.items || data.items.length === 0) { tabelaProd.innerHTML = `<tr><td colspan="6" class="celula-mensagem-tabela">Nenhum produto encontrado.</td></tr>`; paginacaoProdContainer.style.display = 'none'; } else { paginacaoProdContainer.style.display = 'flex'; data.items.forEach(p => { tabelaProd.innerHTML += `<tr><td>${p.id}</td><td>${p.cod_entrada}</td><td>${p.cod_saida || ''}</td><td>${p.descricao}</td><td>${p.beneficiamento || ''}</td><td>${p.und}</td></tr>`; }); estadoPaginaProd.atual = data.current_page; infoPaginaProd.textContent = `Página ${data.current_page} de ${data.total_pages}`; btnProdPaginaAnterior.disabled = !data.has_prev; btnProdProximaPagina.disabled = !data.has_next; } } catch (error) { mostrarNotificacao(error.message, 'erro'); tabelaProd.innerHTML = `<tr><td colspan="6" class="celula-mensagem-tabela">Erro ao carregar.</td></tr>`; } }
         if(btnProdPaginaAnterior) btnProdPaginaAnterior.addEventListener('click', () => { if (!btnProdPaginaAnterior.disabled) carregarProdutos(estadoPaginaProd.atual - 1); });
         if(btnProdProximaPagina) btnProdProximaPagina.addEventListener('click', () => { if (!btnProdProximaPagina.disabled) carregarProdutos(estadoPaginaProd.atual + 1); });
-        
         const tabelaSetores = document.getElementById('corpoTabelaSetores'); const formSetor = document.getElementById('form-setor'); const hdnCodigoOriginalSetor = document.getElementById('hdnCodigoOriginalSetor'); const txtSetorCodigo = document.getElementById('txtSetorCodigo'); const txtSetorNome = document.getElementById('txtSetorNome'); const btnSalvarSetor = document.getElementById('btnSalvarSetor'); const btnCancelarSetor = document.getElementById('btnCancelarSetor'); const tituloFormSetor = document.querySelector('#conteudo-aba-setores h2');
         async function carregarSetores() { try { const setores = await buscarDados('/api/setores'); tabelaSetores.innerHTML = ''; setores.forEach(s => { tabelaSetores.innerHTML += `<tr><td>${s.codigo}</td><td>${s.nome}</td><td class="acoes-tabela"><button class="btn-acao-tabela btn-editar" data-codigo="${s.codigo}" data-nome="${s.nome}">Editar</button><button class="btn-acao-tabela btn-excluir" data-codigo="${s.codigo}">Excluir</button></td></tr>`; }); } catch (error) { mostrarNotificacao(error.message, 'erro'); } }
         function limparFormSetor() { formSetor.reset(); hdnCodigoOriginalSetor.value = ''; tituloFormSetor.textContent = 'Gerenciar Setores'; btnSalvarSetor.textContent = 'Adicionar'; btnCancelarSetor.classList.add('oculto'); txtSetorCodigo.readOnly = false; }
         formSetor.addEventListener('submit', async (e) => { e.preventDefault(); const codigoOriginal = hdnCodigoOriginalSetor.value; const ehEdicao = !!codigoOriginal; const url = ehEdicao ? `/api/setores/${codigoOriginal}` : '/api/setores'; const method = ehEdicao ? 'PUT' : 'POST'; try { const response = await fetch(url, { method: method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ codigo: txtSetorCodigo.value, nome: txtSetorNome.value }) }); const resultado = await response.json(); mostrarNotificacao(resultado.mensagem || resultado.erro, response.ok ? 'sucesso' : 'erro'); if (response.ok) { limparFormSetor(); carregarSetores(); } } catch (error) { mostrarNotificacao('Erro de conexão.', 'erro'); } });
         tabelaSetores.addEventListener('click', (e) => { if (e.target.classList.contains('btn-editar')) { const codigo = e.target.dataset.codigo; const nome = e.target.dataset.nome; hdnCodigoOriginalSetor.value = codigo; txtSetorCodigo.value = codigo; txtSetorNome.value = nome; tituloFormSetor.textContent = `Editando Setor: ${codigo}`; btnSalvarSetor.textContent = 'Salvar'; btnCancelarSetor.classList.remove('oculto'); txtSetorCodigo.readOnly = true; } if (e.target.classList.contains('btn-excluir')) { const codigo = e.target.dataset.codigo; if (confirm(`Tem certeza?`)) { fetch(`/api/setores/${codigo}`, { method: 'DELETE' }).then(r => r.json()).then(res => { mostrarNotificacao(res.mensagem || res.erro, res.erro ? 'erro' : 'sucesso'); carregarSetores(); }); } } });
         if(btnCancelarSetor) btnCancelarSetor.addEventListener('click', limparFormSetor);
-
         const formMotivo = document.getElementById('form-motivo'); const tabelaMotivos = document.getElementById('corpoTabelaMotivos'); const hdnIdOriginalMotivo = document.getElementById('hdnIdOriginalMotivo'); const txtMotivoId = document.getElementById('txtMotivoId'); const txtMotivoDescricao = document.getElementById('txtMotivoDescricao'); const btnSalvarMotivo = document.getElementById('btnSalvarMotivo'); const btnCancelarMotivo = document.getElementById('btnCancelarMotivo'); const tituloFormMotivo = document.querySelector('#conteudo-aba-motivos h2');
         async function carregarMotivos() { try { const motivos = await buscarDados('/api/motivos'); tabelaMotivos.innerHTML = ''; motivos.forEach(m => { tabelaMotivos.innerHTML += `<tr><td>${m.id}</td><td>${m.motivo}</td><td class="acoes-tabela"><button class="btn-acao-tabela btn-editar" data-id="${m.id}" data-motivo="${m.motivo}">Editar</button><button class="btn-acao-tabela btn-excluir" data-id="${m.id}">Excluir</button></td></tr>`; }); } catch (error) { mostrarNotificacao(error.message, 'erro'); } }
         function limparFormMotivo() { formMotivo.reset(); hdnIdOriginalMotivo.value = ''; tituloFormMotivo.textContent = 'Gerenciar Motivos'; btnSalvarMotivo.textContent = 'Adicionar'; btnCancelarMotivo.classList.add('oculto'); txtMotivoId.readOnly = false; }
@@ -130,48 +131,50 @@ document.addEventListener('DOMContentLoaded', function() {
         carregarOperadores();
     }
     
+    // --- INICIALIZAÇÃO DA PÁGINA DO DASHBOARD ---
     function initDashboard() {
-        const filtroPeriodo = document.getElementById('filtroPeriodoDashboard');
-        const rangePersonalizado = document.getElementById('rangePersonalizado');
-        const dataDe = document.getElementById('txtDataDashboardDe');
-        const dataAte = document.getElementById('txtDataDashboardAte');
-        const btnAtualizar = document.getElementById('btnAtualizarDashboard');
+        if (typeof ChartDataLabels === 'undefined') { console.error("ChartDataLabels não foi carregado."); return; }
+        Chart.register(ChartDataLabels);
+        const elementos = { filtroPeriodo: document.getElementById('filtroPeriodoDashboard'), rangePersonalizado: document.getElementById('rangePersonalizado'), dataDe: document.getElementById('txtDataDashboardDe'), dataAte: document.getElementById('txtDataDashboardAte'), btnAtualizar: document.getElementById('btnAtualizarDashboard'), kpiQtdPecas: document.getElementById('kpiQtdPecas'), kpiQtdKg: document.getElementById('kpiQtdKg'), kpiValorTotal: document.getElementById('kpiValorTotal'), kpiTurno1: document.getElementById('kpiTurno1'), kpiTurno2: document.getElementById('kpiTurno2'), kpiTurno3: document.getElementById('kpiTurno3') };
         let charts = {};
         const formatDate = (date) => date.toISOString().split('T')[0];
         async function carregarDadosDashboard() {
             let dataDeStr, dataAteStr;
-            const periodo = filtroPeriodo.value;
-            const hoje = new Date();
-            hoje.setHours(0, 0, 0, 0);
-            if (periodo !== 'personalizado') { rangePersonalizado.classList.add('oculto'); } 
-            else { rangePersonalizado.classList.remove('oculto'); }
+            const periodo = elementos.filtroPeriodo.value; const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+            elementos.rangePersonalizado.classList.toggle('oculto', periodo !== 'personalizado');
             if (periodo === 'hoje') { dataDeStr = dataAteStr = formatDate(hoje); } 
             else if (periodo === 'ultimos7dias') { dataAteStr = formatDate(hoje); const dataInicio = new Date(); dataInicio.setDate(hoje.getDate() - 6); dataDeStr = formatDate(dataInicio); } 
             else if (periodo === 'mesAtual') { dataAteStr = formatDate(hoje); const dataInicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1); dataDeStr = formatDate(dataInicio); } 
-            else if (periodo === 'personalizado') {
-                if (!dataDe.value || !dataAte.value) { mostrarNotificacao('Selecione as datas de início e fim.', 'aviso'); return; }
-                dataDeStr = dataDe.value; dataAteStr = dataAte.value;
-            }
+            else if (periodo === 'personalizado') { if (!elementos.dataDe.value || !elementos.dataAte.value) { mostrarNotificacao('Selecione as datas.', 'aviso'); return; } dataDeStr = elementos.dataDe.value; dataAteStr = elementos.dataAte.value; }
             try {
                 const data = await buscarDados(`/api/dashboard?dataDe=${dataDeStr}&dataAte=${dataAteStr}`);
-                document.getElementById('kpiTotalApontamentos').textContent = data.kpis.total_apontamentos || 0;
-                document.getElementById('kpiQuantidadeProduzida').textContent = parseFloat(data.kpis.quantidade_total || 0).toLocaleString('pt-BR');
-                document.getElementById('kpiOperadoresAtivos').textContent = data.kpis.operadores_ativos || 0;
-                atualizarGrafico(charts, 'graficoProducaoSetor', 'bar', data.producao_por_setor, 'por Setor', 'total', 'nome');
-                atualizarGrafico(charts, 'graficoTopProdutos', 'pie', data.top_produtos, 'Top 5 Produtos', 'total', 'descricao');
-                atualizarGrafico(charts, 'graficoProducaoTurno', 'doughnut', data.producao_por_turno, 'por Turno', 'total', 'turno');
-                atualizarGrafico(charts, 'graficoProducaoDiaria', 'line', data.producao_diaria, 'Diária', 'total', 'data');
+                elementos.kpiQtdPecas.textContent = parseFloat(data.kpis.quantidade_pecas || 0).toLocaleString('pt-BR');
+                elementos.kpiQtdKg.textContent = parseFloat(data.kpis.quantidade_kg || 0).toLocaleString('pt-BR');
+                elementos.kpiValorTotal.textContent = parseFloat(data.kpis.valor_total || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                const totalTurnos = (data.kpis.turno1_total || 0) + (data.kpis.turno2_total || 0) + (data.kpis.turno3_total || 0);
+                elementos.kpiTurno1.textContent = totalTurnos > 0 ? `${((data.kpis.turno1_total / totalTurnos) * 100).toFixed(1)}%` : '0%';
+                elementos.kpiTurno2.textContent = totalTurnos > 0 ? `${((data.kpis.turno2_total / totalTurnos) * 100).toFixed(1)}%` : '0%';
+                elementos.kpiTurno3.textContent = totalTurnos > 0 ? `${((data.kpis.turno3_total / totalTurnos) * 100).toFixed(1)}%` : '0%';
+                
+                atualizarGrafico(charts, 'graficoProducaoSetor', { tipo: 'bar', dados: data.producao_por_setor, dataKey: 'total', labelKey: 'nome', cor: '#3498db', comLinha: true, formato: 'numero' });
+                atualizarGrafico(charts, 'graficoTopProdutos', { tipo: 'bar', dados: data.top_produtos, dataKey: 'total', labelKey: 'cod_entrada', cor: '#2ecc71', comLinha: true, formato: 'numero' });
+                atualizarGrafico(charts, 'graficoTopMotivos', { tipo: 'bar', dados: data.top_motivos, dataKey: 'total', labelKey: 'motivo', cor: '#e74c3c', comLinha: true, formato: 'numero' });
+                atualizarGrafico(charts, 'graficoValorSetor', { tipo: 'bar', dados: data.valor_por_setor, dataKey: 'total_valor', labelKey: 'nome', cor: '#9b59b6', comLinha: true, formato: 'moeda' });
             } catch (error) { mostrarNotificacao(error.message, 'erro'); }
         }
-        function atualizarGrafico(chartInstances, canvasId, tipo, dados, label, dataKey, labelKey) {
-            const ctx = document.getElementById(canvasId);
-            if (!ctx) return;
-            if (chartInstances[canvasId]) { chartInstances[canvasId].destroy(); }
-            const backgroundColors = tipo === 'pie' || tipo === 'doughnut' ? ['#3498db', '#e74c3c', '#9b59b6', '#2ecc71', '#f1c40f', '#1abc9c', '#34495e'] : '#3498db';
-            chartInstances[canvasId] = new Chart(ctx.getContext('2d'), { type: tipo, data: { labels: dados.map(item => item[labelKey]), datasets: [{ label: `Quantidade ${label}`, data: dados.map(item => item[dataKey]), backgroundColor: backgroundColors, borderColor: tipo === 'line' ? '#3498db' : '#ffffff', borderWidth: tipo === 'pie' || tipo === 'doughnut' ? 2 : 0, fill: tipo === 'line' ? false : true, tension: 0.1 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: tipo === 'pie' || tipo === 'doughnut' } }, scales: tipo === 'bar' || tipo === 'line' ? { y: { beginAtZero: true } } : {} } });
+        function atualizarGrafico(chartInstances, canvasId, config) {
+            const ctx = document.getElementById(canvasId); if (!ctx) return;
+            if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+            const labels = config.dados.map(item => item[config.labelKey]);
+            const dataValues = config.dados.map(item => item[config.dataKey]);
+            const datasets = [{ type: 'bar', data: dataValues, backgroundColor: config.cor, barThickness: 40 }];
+            if (config.comLinha) { datasets.push({ type: 'line', data: dataValues, borderColor: '#f1c40f', tension: 0.4, pointRadius: 0, datalabels: { display: false } }); }
+            const options = { responsive: true, maintainAspectRatio: false, layout: { padding: { top: 30 } }, plugins: { legend: { display: false }, datalabels: { display: true, anchor: 'end', align: 'top', offset: 8, color: '#333', font: { weight: 'bold' }, formatter: (value) => { if (config.formato === 'moeda') return 'R$ ' + value.toLocaleString('pt-BR', {minimumFractionDigits: 2}); return value.toLocaleString('pt-BR'); } } }, scales: (config.tipo === 'bar') ? { x: { grid: { display: false } }, y: { display: false, beginAtZero: true, grace: '10%'} } : { x: { display: false }, y: { display: false } } };
+            chartInstances[canvasId] = new Chart(ctx.getContext('2d'), { type: 'bar', data: { labels, datasets }, options });
         }
-        filtroPeriodo.addEventListener('change', carregarDadosDashboard);
-        btnAtualizar.addEventListener('click', carregarDadosDashboard);
+        
+        elementos.filtroPeriodo.addEventListener('change', () => { if(elementos.filtroPeriodo.value !== 'personalizado') carregarDadosDashboard(); });
+        elementos.btnAtualizar.addEventListener('click', carregarDadosDashboard);
         carregarDadosDashboard();
     }
 });

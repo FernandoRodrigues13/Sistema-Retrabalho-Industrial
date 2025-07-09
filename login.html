@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - Sistema de Produção</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      /* Adicione este CSS para a mensagem de erro */
+      .login-body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: #eef1f5;
+      }
+      .login-container {
+        background-color: #ffffff;
+        padding: 40px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 400px;
+        text-align: center;
+      }
+      .login-container h2 {
+        margin-top: 0;
+        margin-bottom: 10px;
+        color: #2c3e50;
+      }
+      .login-container p {
+        margin-bottom: 25px;
+        color: #555;
+      }
+      .campo-login {
+        margin-bottom: 20px;
+        text-align: left;
+      }
+      .campo-login label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+      }
+      .campo-login input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+      }
+      .btn-login {
+        width: 100%;
+        padding: 12px;
+        border: none;
+        border-radius: 4px;
+        background-image: linear-gradient(to right, #007bff 0%, #0056b3 100%);
+        color: white;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        margin-top: 10px;
+      }
+      .login-erro {
+        background-color: #f8d7da;
+        color: #721c24;
+        padding: 10px 15px;
+        border-radius: 4px;
+        margin-bottom: 15px;
+        text-align: center;
+        border: 1px solid #f5c6cb;
+        font-size: 0.9em;
+      }
+    </style>
+  </head>
+  <body class="login-body">
+    <div class="login-container">
+      <h2>Sistema de Produção</h2>
+      <p>Por favor, faça o login para continuar.</p>
+
+      <!-- Div para a mensagem de erro -->
+      <div id="mensagem-erro-container"></div>
+
+      <form method="POST" action="/login">
+        <div class="campo-login">
+          <label for="matricula">Matrícula</label
+          ><input
+            type="text"
+            id="matricula"
+            name="matricula"
+            required
+            autofocus
+          />
+        </div>
+        <div class="campo-login">
+          <label for="senha">Senha</label
+          ><input type="password" id="senha" name="senha" required />
+        </div>
+        <button type="submit" class="btn-login">Entrar</button>
+      </form>
+    </div>
+
+    <script>
+      // Script para mostrar a mensagem de erro vinda da URL
+      document.addEventListener('DOMContentLoaded', function() {
+        const params = new URLSearchParams(window.location.search);
+        const erro = params.get('erro');
+        const container = document.getElementById('mensagem-erro-container');
+
+        if (erro === 'invalido') {
+          container.innerHTML = '<div class="login-erro">Matrícula ou senha inválida.</div>';
+        } else if (erro === 'campos_vazios') {
+            container.innerHTML = '<div class="login-erro">Por favor, preencha todos os campos.</div>';
+        }
+      });
+    </script>
+  </body>
+</html>

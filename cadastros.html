@@ -10,7 +10,13 @@
     <div id="notificacao-container"></div>
     <div class="app-wrapper">
       <header class="app-header">
-        <h1>Sistema de Produção - Retrabalho</h1>
+        <div class="header-content">
+            <h1>Sistema de Produção - Retrabalho</h1>
+            <div class="user-info">
+              <span id="nome-usuario-logado">Carregando...</span>
+              <a href="/logout" class="btn-logout">Sair</a>
+            </div>
+        </div>
         <nav class="app-nav">
           <a href="/apontamentos">Apontamento de Retrabalho</a
           ><a href="/cadastros" class="active">Cadastros Base</a
@@ -75,8 +81,9 @@
             <div class="secao-cadastro">
               <h2>Produtos Cadastrados</h2>
               <p>
-                A gestão de produtos é feita através da importação do arquivo
-                CSV (<code>importar_retrabalho.py</code>).
+                A gestão de produtos (adição, edição, exclusão) é feita através
+                da importação do arquivo CSV
+                (<code>importar_retrabalho.py</code>).
               </p>
             </div>
             <div class="tabela-visualizacao-wrapper">
