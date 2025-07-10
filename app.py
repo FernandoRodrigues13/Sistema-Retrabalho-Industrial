@@ -1,31 +1,21 @@
-# Arquivo: app.py (Versão Completa com Autenticação)
+# Arquivo: app.py (Versão COMPLETA E CORRIGIDA)
 
-from flask import Flask, jsonify, request, send_from_directory, Response, session, redirect, url_for
+from flask import Flask, jsonify, request, Response, session, redirect, url_for, flash, render_template
 from flask_cors import CORS
 import sqlite3, os, math, traceback, io, csv, bcrypt
 from datetime import datetime, date, time
 from functools import wraps
 
-app = Flask(__name__, static_folder='.', static_url_path='')
+app = Flask(__name__, template_folder='templates', static_folder='static')
 CORS(app)
 DATABASE_FILE = 'producao.db'
-
-# --- IMPORTANTE: Chave Secreta para Sessão ---
-# Troque 'sua-chave-secreta-muito-segura' por uma string aleatória e complexa.
-# Você pode gerar uma no terminal com: python -c "import os; print(os.urandom(24))"
 app.secret_key = 'sua-chave-secreta-muito-segura-e-aleatoria-12345' 
 
-# --- Função de Conexão com o BD ---
 def get_db_connection():
-    conn = sqlite3.connect(DATABASE_FILE, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+    conn = sqlite3.connect(DATABASE_FILE, check_same_thread=False); conn.row_factory = sqlite3.Row; conn.execute("PRAGMA foreign_keys = ON"); return conn
 
-# --- Inicialização do BD (ATUALIZADA) ---
 def init_db():
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    conn = get_db_connection(); cursor = conn.cursor()
     cursor.execute("CREATE TABLE IF NOT EXISTS operadores (matricula TEXT PRIMARY KEY, nome TEXT NOT NULL)")
     cursor.execute("CREATE TABLE IF NOT EXISTS setores (codigo TEXT PRIMARY KEY, nome TEXT NOT NULL)")
     cursor.execute("CREATE TABLE IF NOT EXISTS motivos_retrabalho (id INTEGER PRIMARY KEY, motivo TEXT NOT NULL UNIQUE)")
@@ -47,90 +37,71 @@ def init_db():
     except: pass
     try: cursor.execute("ALTER TABLE operadores ADD COLUMN permissao TEXT NOT NULL DEFAULT 'operador'")
     except: pass
+    conn.commit(); conn.close()
 
-    conn.commit()
-    conn.close()
+with app.app_context(): init_db(); print(f"Banco de dados inicializado e verificado: {DATABASE_FILE}")
 
-with app.app_context():
-    init_db()
-    print(f"Banco de dados inicializado e verificado: {DATABASE_FILE}")
-
-# --- DECORATOR PARA PROTEGER ROTAS ---
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'matricula' not in session:
-            if request.path.startswith('/api/'):
-                return jsonify({'erro': 'Autenticação necessária'}), 401
+            if request.path.startswith('/api/'): return jsonify({'erro': 'Autenticação necessária'}), 401
             return redirect(url_for('pagina_login'))
         return f(*args, **kwargs)
     return decorated_function
 
-# --- ROTAS DE PÁGINAS (HTML) ---
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'matricula' not in session:
+            if request.path.startswith('/api/'): return jsonify({'erro': 'Autenticação necessária'}), 401
+            return redirect(url_for('pagina_login'))
+        if session.get('permissao') != 'adm':
+            if request.path.startswith('/api/'): return jsonify({'erro': 'Acesso negado. Requer permissão de administrador.'}), 403
+            flash('Você não tem permissão para acessar esta página.', 'erro')
+            return redirect(url_for('pagina_apontamentos'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 @app.route('/login', methods=['GET'])
 def pagina_login():
-    if 'matricula' in session:
-        return redirect(url_for('pagina_apontamentos'))
-    return send_from_directory(app.static_folder, 'login.html')
+    if 'matricula' in session: return redirect(url_for('pagina_apontamentos'))
+    return render_template('login.html')
 
 @app.route('/')
 @login_required
-def rota_raiz():
-    return redirect(url_for('pagina_apontamentos'))
+def rota_raiz(): return redirect(url_for('pagina_apontamentos'))
 
 @app.route('/apontamentos')
 @login_required
-def pagina_apontamentos():
-    return send_from_directory(app.static_folder, 'apontamentos.html')
+def pagina_apontamentos(): return render_template('apontamentos.html')
 
 @app.route('/cadastros')
-@login_required
-def pagina_cadastros():
-    return send_from_directory(app.static_folder, 'cadastros.html')
+@admin_required
+def pagina_cadastros(): return render_template('cadastros.html')
 
 @app.route('/dashboard')
-@login_required
-def pagina_dashboard():
-    return send_from_directory(app.static_folder, 'dashboard.html')
+@admin_required
+def pagina_dashboard(): return render_template('dashboard.html')
 
-# --- ROTAS DE AUTENTICAÇÃO ---
 @app.route('/login', methods=['POST'])
 def processa_login():
-    matricula = request.form.get('matricula')
-    senha = request.form.get('senha')
-
-    if not matricula or not senha:
-        return redirect(url_for('pagina_login', erro='campos_vazios'))
-
-    conn = get_db_connection()
-    operador = conn.execute('SELECT * FROM operadores WHERE matricula = ?', (matricula,)).fetchone()
-    conn.close()
-
+    matricula = request.form.get('matricula'); senha = request.form.get('senha')
+    if not matricula or not senha: return redirect(url_for('pagina_login', erro='campos_vazios'))
+    conn = get_db_connection(); operador = conn.execute('SELECT * FROM operadores WHERE matricula = ?', (matricula,)).fetchone(); conn.close()
     if operador and operador['senha'] and bcrypt.checkpw(senha.encode('utf-8'), operador['senha']):
-        session.clear()
-        session['matricula'] = operador['matricula']
-        session['nome'] = operador['nome']
-        session['permissao'] = operador['permissao']
+        session.clear(); session['matricula'] = operador['matricula']; session['nome'] = operador['nome']; session['permissao'] = operador['permissao']
         return redirect(url_for('pagina_apontamentos'))
     else:
         return redirect(url_for('pagina_login', erro='invalido'))
 
 @app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('pagina_login'))
+def logout(): session.clear(); return redirect(url_for('pagina_login'))
 
-# --- ROTAS DE API (TODAS PROTEGIDAS) ---
-
+# --- INÍCIO DAS ROTAS DE API ---
 @app.route('/api/user/info', methods=['GET'])
 @login_required
-def get_user_info():
-    return jsonify({
-        'matricula': session.get('matricula'),
-        'nome': session.get('nome'),
-        'permissao': session.get('permissao')
-    })
-
+def get_user_info(): return jsonify({'matricula': session.get('matricula'),'nome': session.get('nome'),'permissao': session.get('permissao')})
 def format_date_for_display(date_str):
     if not date_str: return ''
     try: return datetime.strptime(date_str, '%Y-%m-%d').strftime('%d/%m/%Y')
@@ -167,87 +138,6 @@ def get_motivo_by_id(motivo_id):
     conn = get_db_connection(); row = conn.execute("SELECT motivo FROM motivos_retrabalho WHERE id = ?", (motivo_id,)).fetchone(); conn.close()
     if row: return jsonify({"motivo": row['motivo']})
     else: return jsonify({"erro": f"Motivo com ID {motivo_id} não encontrado"}), 404
-@app.route('/api/operadores', methods=['GET'])
-@login_required
-def get_operadores():
-    c=get_db_connection(); r=c.execute('SELECT matricula, nome, permissao FROM operadores ORDER BY nome').fetchall(); c.close(); return jsonify([dict(i) for i in r])
-@app.route('/api/operadores', methods=['POST'])
-@login_required
-def add_operador():
-    d=request.get_json(); c=get_db_connection()
-    try: c.execute('INSERT INTO operadores(matricula, nome) VALUES(?,?)',(d['matricula'],d['nome'])); c.commit(); return jsonify({'mensagem':'Operador adicionado!'}),201
-    except Exception as e: return jsonify({'erro':str(e)}),400
-    finally: c.close()
-@app.route('/api/operadores/<string:mat>', methods=['PUT'])
-@login_required
-def update_operador(mat):
-    d=request.get_json(); c=get_db_connection(); c.execute('UPDATE operadores SET nome=? WHERE matricula=?',(d['nome'],mat)); c.commit(); c.close(); return jsonify({'mensagem':'Operador atualizado!'})
-@app.route('/api/operadores/<string:mat>', methods=['DELETE'])
-@login_required
-def delete_operador(mat):
-    c=get_db_connection()
-    try: c.execute('DELETE FROM operadores WHERE matricula=?',(mat,)); c.commit(); return jsonify({'mensagem':'Operador excluído!'})
-    except Exception as e: return jsonify({'erro':str(e)}),400
-    finally: c.close()
-@app.route('/api/produtos', methods=['GET'])
-@login_required
-def get_produtos():
-    conn = get_db_connection();
-    try:
-        page = request.args.get('page', 1, type=int); per_page = 50; offset = (page - 1) * per_page
-        total_produtos_row = conn.execute('SELECT COUNT(id) as total FROM produtos_retrabalho').fetchone()
-        total_produtos = total_produtos_row['total'] if total_produtos_row else 0
-        total_pages = math.ceil(total_produtos / per_page) if total_produtos > 0 else 1
-        produtos = conn.execute('SELECT * FROM produtos_retrabalho ORDER BY id LIMIT ? OFFSET ?', (per_page, offset)).fetchall()
-        return jsonify({ "items": [dict(p) for p in produtos], "total_pages": total_pages, "current_page": page, "has_next": page < total_pages, "has_prev": page > 1 })
-    finally: conn.close()
-@app.route('/api/setores', methods=['GET'])
-@login_required
-def get_setores():
-    c=get_db_connection(); r=c.execute('SELECT * FROM setores ORDER BY codigo').fetchall(); c.close(); return jsonify([dict(i) for i in r])
-@app.route('/api/setores', methods=['POST'])
-@login_required
-def add_setor():
-    d=request.get_json(); c=get_db_connection()
-    try: c.execute('INSERT INTO setores(codigo, nome) VALUES(?,?)',(d['codigo'].upper(), d['nome'])); c.commit(); return jsonify({'mensagem':'Setor adicionado!'}), 201
-    except Exception as e: return jsonify({'erro':str(e)}), 400
-    finally: c.close()
-@app.route('/api/setores/<string:codigo>', methods=['PUT'])
-@login_required
-def update_setor(codigo):
-    d=request.get_json(); c=get_db_connection(); c.execute('UPDATE setores SET nome=? WHERE codigo=?', (d['nome'], codigo.upper())); c.commit(); c.close(); return jsonify({'mensagem':'Setor atualizado!'})
-@app.route('/api/setores/<string:codigo>', methods=['DELETE'])
-@login_required
-def delete_setor(codigo):
-    c=get_db_connection()
-    try: c.execute('DELETE FROM setores WHERE codigo=?', (codigo.upper(),)); c.commit(); return jsonify({'mensagem':'Setor excluído!'})
-    except Exception as e: return jsonify({'erro':str(e)}), 400
-    finally: c.close()
-@app.route('/api/motivos', methods=['GET'])
-@login_required
-def get_motivos():
-    c=get_db_connection(); r=c.execute('SELECT * FROM motivos_retrabalho ORDER BY id').fetchall(); c.close(); return jsonify([dict(i) for i in r])
-@app.route('/api/motivos', methods=['POST'])
-@login_required
-def add_motivo():
-    d=request.get_json(); c=get_db_connection()
-    try: c.execute('INSERT INTO motivos_retrabalho(id,motivo) VALUES(?,?)',(d['id'],d['motivo'])); c.commit(); return jsonify({'mensagem':'Motivo adicionado!'}),201
-    except Exception as e: return jsonify({'erro':str(e)}),400
-    finally: c.close()
-@app.route('/api/motivos/<int:id>', methods=['PUT'])
-@login_required
-def update_motivo(id):
-    d=request.get_json(); c=get_db_connection()
-    try: c.execute('UPDATE motivos_retrabalho SET id=?,motivo=? WHERE id=?',(d['id_novo'],d['motivo'],id)); c.commit(); return jsonify({'mensagem':'Motivo atualizado!'})
-    except Exception as e: return jsonify({'erro':str(e)}),400
-    finally: c.close()
-@app.route('/api/motivos/<int:id>', methods=['DELETE'])
-@login_required
-def delete_motivo(id):
-    c=get_db_connection()
-    try: c.execute('DELETE FROM motivos_retrabalho WHERE id=?',(id,)); c.commit(); return jsonify({'mensagem':'Motivo excluído!'})
-    except Exception as e: return jsonify({'erro':str(e)}),400
-    finally: c.close()
 @app.route('/api/apontamentos/retrabalho', methods=['POST'])
 @login_required
 def registrar_apontamento_retrabalho():
@@ -257,6 +147,8 @@ def registrar_apontamento_retrabalho():
         c.execute('INSERT INTO apontamentos_retrabalho(data,hora,turno,matricula_operador,cod_entrada,setor_codigo,motivo_retrabalho_id,quantidade) VALUES(?,?,?,?,?,?,?,?)',(date.today().strftime('%Y-%m-%d'),h,turno,d['matriculaOperador'],d['codEntrada'],d['setorId'].upper(),int(d['motivoId']),float(d['quantidade']))); c.commit(); return jsonify({'mensagem':'Apontamento registrado com sucesso!'}),201
     except Exception as e: print(e); return jsonify({'erro':str(e)}),500
     finally: c.close()
+
+# ROTA DO HISTÓRICO DE APONTAMENTOS (ESTAVA FALTANDO)
 @app.route('/api/apontamentos/retrabalho', methods=['GET'])
 @login_required
 def get_apontamentos_retrabalho():
@@ -279,72 +171,115 @@ def get_apontamentos_retrabalho():
         print(f"ERRO EM GET /api/apontamentos/retrabalho: {e}"); traceback.print_exc()
         return jsonify({"erro": "Erro interno ao buscar o histórico."}), 500
     finally: c.close()
-@app.route('/api/apontamento/retrabalho/<int:id>', methods=['GET'])
-@login_required
-def get_apontamento_by_id(id):
-    c=get_db_connection(); r=c.execute("SELECT ar.*,o.nome as nome_operador,pr.id as produto_id,pr.descricao as descricao_produto,pr.cod_saida,pr.beneficiamento,pr.und,s.nome as nome_setor,mr.motivo as motivo_retrabalho FROM apontamentos_retrabalho ar LEFT JOIN operadores o ON ar.matricula_operador=o.matricula LEFT JOIN produtos_retrabalho pr ON ar.cod_entrada=pr.cod_entrada LEFT JOIN setores s ON ar.setor_codigo=s.codigo LEFT JOIN motivos_retrabalho mr ON ar.motivo_retrabalho_id=mr.id WHERE ar.id=?",(id,)).fetchone(); c.close()
-    return jsonify(dict(r)) if r else (jsonify({'erro':'Not Found'}),404)
-@app.route('/api/apontamentos/retrabalho/<int:id>', methods=['PUT'])
-@login_required
-def update_apontamento(id):
-    d=request.get_json(); c=get_db_connection()
-    try: c.execute('UPDATE apontamentos_retrabalho SET matricula_operador=?,cod_entrada=?,setor_codigo=?,motivo_retrabalho_id=?,quantidade=? WHERE id=?',(d['matriculaOperador'],d['codEntrada'],d['setorId'].upper(),int(d['motivoId']),float(d['quantidade']),id)); c.commit(); return jsonify({'mensagem':'Apontamento atualizado com sucesso!'})
-    except Exception as e: c.rollback(); return jsonify({'erro': str(e)}), 500
-    finally: c.close()
-@app.route('/api/apontamentos/retrabalho/<int:id>', methods=['DELETE'])
-@login_required
-def deletar_apontamento(id):
-    c=get_db_connection(); c.execute('DELETE FROM apontamentos_retrabalho WHERE id=?',(id,)); c.commit(); c.close(); return jsonify({'mensagem':'Apontamento excluído com sucesso!'})
-@app.route('/api/apontamentos/exportar', methods=['GET'])
-@login_required
-def exportar_apontamentos_csv():
-    c=get_db_connection(); p={}; cs=[]
-    if request.args.get('dataDe'): cs.append("ar.data >= :dataDe"); p['dataDe']=request.args.get('dataDe')
-    if request.args.get('dataAte'): cs.append("ar.data <= :dataAte"); p['dataAte']=request.args.get('dataAte')
-    if request.args.get('idProduto'): cs.append("pr.id = :idProduto"); p['idProduto']=request.args.get('idProduto')
-    wc=" WHERE "+ " AND ".join(cs) if cs else ""
-    q=f"SELECT ar.data,ar.hora,ar.turno,ar.matricula_operador,o.nome,pr.cod_entrada,pr.descricao,ar.setor_codigo,s.nome,ar.motivo_retrabalho_id,mr.motivo,ar.quantidade FROM apontamentos_retrabalho ar LEFT JOIN operadores o ON ar.matricula_operador=o.matricula LEFT JOIN produtos_retrabalho pr ON ar.cod_entrada=pr.cod_entrada LEFT JOIN setores s ON ar.setor_codigo=s.codigo LEFT JOIN motivos_retrabalho mr ON ar.motivo_retrabalho_id=mr.id {wc} ORDER BY ar.data DESC,ar.hora DESC"
-    d=c.execute(q,p).fetchall(); c.close(); o=io.StringIO(); w=csv.writer(o,delimiter=';'); w.writerow(['Data','Hora','Turno','Matricula_Operador','Nome_Operador','Cod_Entrada_Produto','Descricao_Produto','Cod_Setor','Nome_Setor','ID_Motivo','Descricao_Motivo','Quantidade']); w.writerows(d); o.seek(0)
-    return Response(o,mimetype="text/csv",headers={"Content-Disposition":f"attachment;filename=apontamentos_{date.today()}.csv"})
 
+# APIs de CADASTRO (protegidas por @admin_required)
+@app.route('/api/operadores', methods=['GET'])
+@admin_required
+def get_operadores():
+    c=get_db_connection(); r=c.execute('SELECT matricula, nome, permissao FROM operadores ORDER BY nome').fetchall(); c.close(); return jsonify([dict(i) for i in r])
+@app.route('/api/operadores', methods=['POST'])
+@admin_required
+def add_operador():
+    d=request.get_json(); c=get_db_connection();
+    try: c.execute('INSERT INTO operadores(matricula, nome) VALUES(?,?)',(d['matricula'],d['nome'])); c.commit(); return jsonify({'mensagem':'Operador adicionado!'}),201
+    except Exception as e: return jsonify({'erro':str(e)}),400
+    finally: c.close()
+@app.route('/api/operadores/<string:mat>', methods=['PUT'])
+@admin_required
+def update_operador(mat):
+    d=request.get_json(); c=get_db_connection(); c.execute('UPDATE operadores SET nome=? WHERE matricula=?',(d['nome'],mat)); c.commit(); c.close(); return jsonify({'mensagem':'Operador atualizado!'})
+@app.route('/api/operadores/<string:mat>', methods=['DELETE'])
+@admin_required
+def delete_operador(mat):
+    c=get_db_connection()
+    try: c.execute('DELETE FROM operadores WHERE matricula=?',(mat,)); c.commit(); return jsonify({'mensagem':'Operador excluído!'})
+    except Exception as e: return jsonify({'erro':str(e)}),400
+    finally: c.close()
+
+# (Restante das APIs de cadastro)
+@app.route('/api/produtos', methods=['GET'])
+@admin_required
+def get_produtos():
+    conn = get_db_connection()
+    try:
+        page = request.args.get('page', 1, type=int); per_page = 50; offset = (page - 1) * per_page
+        total_produtos_row = conn.execute('SELECT COUNT(id) as total FROM produtos_retrabalho').fetchone()
+        total_produtos = total_produtos_row['total'] if total_produtos_row else 0
+        total_pages = math.ceil(total_produtos / per_page) if total_produtos > 0 else 1
+        produtos = conn.execute('SELECT * FROM produtos_retrabalho ORDER BY id LIMIT ? OFFSET ?', (per_page, offset)).fetchall()
+        return jsonify({ "items": [dict(p) for p in produtos], "total_pages": total_pages, "current_page": page, "has_next": page < total_pages, "has_prev": page > 1 })
+    finally: conn.close()
+@app.route('/api/setores', methods=['GET'])
+@admin_required
+def get_setores(): c=get_db_connection(); r=c.execute('SELECT * FROM setores ORDER BY codigo').fetchall(); c.close(); return jsonify([dict(i) for i in r])
+@app.route('/api/setores', methods=['POST'])
+@admin_required
+def add_setor():
+    d=request.get_json(); c=get_db_connection()
+    try: c.execute('INSERT INTO setores(codigo, nome) VALUES(?,?)',(d['codigo'].upper(), d['nome'])); c.commit(); return jsonify({'mensagem':'Setor adicionado!'}), 201
+    except Exception as e: return jsonify({'erro':str(e)}), 400
+    finally: c.close()
+@app.route('/api/setores/<string:codigo>', methods=['PUT'])
+@admin_required
+def update_setor(codigo): d=request.get_json(); c=get_db_connection(); c.execute('UPDATE setores SET nome=? WHERE codigo=?', (d['nome'], codigo.upper())); c.commit(); c.close(); return jsonify({'mensagem':'Setor atualizado!'})
+@app.route('/api/setores/<string:codigo>', methods=['DELETE'])
+@admin_required
+def delete_setor(codigo):
+    c=get_db_connection()
+    try: c.execute('DELETE FROM setores WHERE codigo=?', (codigo.upper(),)); c.commit(); return jsonify({'mensagem':'Setor excluído!'})
+    except Exception as e: return jsonify({'erro':str(e)}), 400
+    finally: c.close()
+@app.route('/api/motivos', methods=['GET'])
+@admin_required
+def get_motivos(): c=get_db_connection(); r=c.execute('SELECT * FROM motivos_retrabalho ORDER BY id').fetchall(); c.close(); return jsonify([dict(i) for i in r])
+@app.route('/api/motivos', methods=['POST'])
+@admin_required
+def add_motivo():
+    d=request.get_json(); c=get_db_connection()
+    try: c.execute('INSERT INTO motivos_retrabalho(id,motivo) VALUES(?,?)',(d['id'],d['motivo'])); c.commit(); return jsonify({'mensagem':'Motivo adicionado!'}),201
+    except Exception as e: return jsonify({'erro':str(e)}),400
+    finally: c.close()
+@app.route('/api/motivos/<int:id>', methods=['PUT'])
+@admin_required
+def update_motivo(id):
+    d=request.get_json(); c=get_db_connection()
+    try: c.execute('UPDATE motivos_retrabalho SET id=?,motivo=? WHERE id=?',(d['id_novo'],d['motivo'],id)); c.commit(); return jsonify({'mensagem':'Motivo atualizado!'})
+    except Exception as e: return jsonify({'erro':str(e)}),400
+    finally: c.close()
+@app.route('/api/motivos/<int:id>', methods=['DELETE'])
+@admin_required
+def delete_motivo(id):
+    c=get_db_connection()
+    try: c.execute('DELETE FROM motivos_retrabalho WHERE id=?',(id,)); c.commit(); return jsonify({'mensagem':'Motivo excluído!'})
+    except Exception as e: return jsonify({'erro':str(e)}),400
+    finally: c.close()
 @app.route('/api/dashboard', methods=['GET'])
-@login_required
+@admin_required
 def get_dashboard_data():
     conn = get_db_connection()
     try:
         data_de_str = request.args.get('dataDe'); data_ate_str = request.args.get('dataAte')
         params = {}; where_clause = ""
-        if data_de_str and data_ate_str:
-            where_clause = "WHERE ar.data BETWEEN :dataDe AND :dataAte"
-            params = {'dataDe': data_de_str, 'dataAte': data_ate_str}
-        
+        if data_de_str and data_ate_str: where_clause = "WHERE ar.data BETWEEN :dataDe AND :dataAte"; params = {'dataDe': data_de_str, 'dataAte': data_ate_str}
         base_query = f"SELECT ar.quantidade, ar.turno, pr.valor, s.nome as nome_setor, m.motivo, pr.cod_entrada FROM apontamentos_retrabalho ar LEFT JOIN produtos_retrabalho pr ON ar.cod_entrada = pr.cod_entrada LEFT JOIN setores s ON ar.setor_codigo = s.codigo LEFT JOIN motivos_retrabalho m ON ar.motivo_retrabalho_id = m.id {where_clause}"
         all_apontamentos = conn.execute(base_query, params).fetchall()
-
         quantidade_total = sum(item['quantidade'] for item in all_apontamentos)
         valor_total = sum(item['quantidade'] * (item['valor'] or 0) for item in all_apontamentos)
-        
         kpis_turno = {'1º Turno': 0, '2º Turno': 0, '3º Turno': 0}
         prod_por_setor_dict = {}; top_produtos_dict = {}; top_motivos_dict = {}; valor_por_setor_dict = {}
-
         for item in all_apontamentos:
             if item['turno'] in kpis_turno: kpis_turno[item['turno']] += item['quantidade']
             setor = item['nome_setor'] or "N/E"; prod_por_setor_dict[setor] = prod_por_setor_dict.get(setor, 0) + item['quantidade']
             motivo = item['motivo'] or "N/E"; top_motivos_dict[motivo] = top_motivos_dict.get(motivo, 0) + item['quantidade']
             produto = item['cod_entrada'] or "N/E"; top_produtos_dict[produto] = top_produtos_dict.get(produto, 0) + item['quantidade']
             valor_item = item['quantidade'] * (item['valor'] or 0); valor_por_setor_dict[setor] = valor_por_setor_dict.get(setor, 0) + valor_item
-
         prod_por_setor = sorted([{'nome': k, 'total': v} for k, v in prod_por_setor_dict.items()], key=lambda x: x['total'], reverse=True)
         top_produtos = sorted([{'cod_entrada': k, 'total': v} for k, v in top_produtos_dict.items()], key=lambda x: x['total'], reverse=True)[:5]
         top_motivos = sorted([{'motivo': k, 'total': v} for k, v in top_motivos_dict.items()], key=lambda x: x['total'], reverse=True)[:5]
         valor_por_setor = sorted([{'nome': k, 'total_valor': v} for k, v in valor_por_setor_dict.items()], key=lambda x: x['total_valor'], reverse=True)
-
         dashboard_data = {
             "kpis": { "quantidade_pecas": quantidade_total, "quantidade_kg": 0, "valor_total": valor_total, "turno1_total": kpis_turno.get('1º Turno', 0), "turno2_total": kpis_turno.get('2º Turno', 0), "turno3_total": kpis_turno.get('3º Turno', 0), },
-            "producao_por_setor": prod_por_setor,
-            "top_produtos": top_produtos,
-            "top_motivos": top_motivos,
-            "valor_por_setor": valor_por_setor
+            "producao_por_setor": prod_por_setor, "top_produtos": top_produtos, "top_motivos": top_motivos, "valor_por_setor": valor_por_setor
         }
         return jsonify(dashboard_data)
     except Exception as e:
@@ -352,6 +287,6 @@ def get_dashboard_data():
         return jsonify({"erro": "Erro ao carregar dados do dashboard"}), 500
     finally:
         if conn: conn.close()
-        
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5001)

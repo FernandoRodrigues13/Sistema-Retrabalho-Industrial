@@ -4,23 +4,30 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Apontamento de Retrabalho</title>
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
   </head>
   <body>
     <div id="notificacao-container"></div>
     <div class="app-wrapper">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="flash-message {{ category }}">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
       <header class="app-header">
         <div class="header-content">
             <h1>Sistema de Produção - Retrabalho</h1>
             <div class="user-info">
               <span id="nome-usuario-logado">Carregando...</span>
-              <a href="/logout" class="btn-logout">Sair</a>
+              <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
             </div>
         </div>
         <nav class="app-nav">
-          <a href="/apontamentos" class="active">Apontamento de Retrabalho</a
-          ><a href="/cadastros">Cadastros Base</a
-          ><a href="/dashboard">Dashboard</a>
+          <a href="{{ url_for('pagina_apontamentos') }}" class="active">Apontamento de Retrabalho</a>
+          <a href="{{ url_for('pagina_cadastros') }}" id="nav-cadastros">Cadastros Base</a>
+          <a href="{{ url_for('pagina_dashboard') }}" id="nav-dashboard">Dashboard</a>
         </nav>
       </header>
       <main class="main-content">
@@ -141,7 +148,7 @@
                     <th>Setor</th>
                     <th>Motivo</th>
                     <th>Qtd.</th>
-                    <th>Ações</th>
+                    <th class="role-adm">Ações</th>
                   </tr>
                 </thead>
                 <tbody id="corpoTabelaApontamentos"></tbody>
@@ -159,6 +166,6 @@
         </div>
       </main>
     </div>
-    <script src="script.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
   </body>
 </html>

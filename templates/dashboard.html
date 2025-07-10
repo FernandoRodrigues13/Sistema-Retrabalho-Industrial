@@ -4,23 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Sistema de Produção</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div id="notificacao-container"></div>
     <div class="app-wrapper">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="flash-message {{ category }}">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
         <header class="app-header">
             <div class="header-content">
                 <h1>Sistema de Produção - Retrabalho</h1>
                 <div class="user-info">
                   <span id="nome-usuario-logado">Carregando...</span>
-                  <a href="/logout" class="btn-logout">Sair</a>
+                  <a href="{{ url_for('logout') }}" class="btn-logout">Sair</a>
                 </div>
             </div>
             <nav class="app-nav">
-                <a href="/apontamentos">Apontamento</a>
-                <a href="/cadastros">Cadastros</a>
-                <a href="/dashboard" class="active">Dashboard</a>
+                <a href="{{ url_for('pagina_apontamentos') }}">Apontamento</a>
+                <a href="{{ url_for('pagina_cadastros') }}" id="nav-cadastros">Cadastros</a>
+                <a href="{{ url_for('pagina_dashboard') }}" id="nav-dashboard" class="active">Dashboard</a>
             </nav>
         </header>
         <main class="main-content">
@@ -65,6 +72,6 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-    <script src="script.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>

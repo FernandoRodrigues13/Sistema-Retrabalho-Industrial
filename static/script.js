@@ -1,37 +1,35 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // --- FUNÇÕES GLOBAIS ---
+    let userPermission = null;
+
     const notificacaoContainer = document.getElementById('notificacao-container');
     function mostrarNotificacao(mensagem, tipo = 'info', duracao = 3500) { if (!notificacaoContainer) return; const notificacaoDiv = document.createElement('div'); notificacaoDiv.className = `notificacao ${tipo}`; notificacaoDiv.innerHTML = `<span>${mensagem}</span><button class="fechar-notificacao" aria-label="Fechar">×</button>`; notificacaoDiv.querySelector('.fechar-notificacao').onclick = () => removerNotificacao(notificacaoDiv); notificacaoContainer.appendChild(notificacaoDiv); requestAnimationFrame(() => { notificacaoDiv.classList.add('mostrar'); }); setTimeout(() => removerNotificacao(notificacaoDiv), duracao); }
     function removerNotificacao(notificacaoDiv) { if (!notificacaoDiv || !notificacaoDiv.parentElement) return; notificacaoDiv.classList.remove('mostrar'); notificacaoDiv.classList.add('saindo'); notificacaoDiv.addEventListener('transitionend', () => { if (notificacaoDiv.parentElement) { notificacaoDiv.remove(); } }, { once: true }); }
     
-    // --- FUNÇÃO DE FETCH ATUALIZADA ---
     async function buscarDados(url) {
       try {
         const response = await fetch(url);
-        if (response.status === 401) {
-          // Sessão expirou ou não está logado, redireciona para a página de login
-          window.location.href = '/login';
-          return; // Para a execução
-        }
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ erro: 'Erro desconhecido.' }));
-          throw new Error(errorData.erro);
-        }
+        if (response.status === 401) { window.location.href = '/login'; return; }
+        if (response.status === 403) { mostrarNotificacao('Acesso negado. Você não tem permissão.', 'erro'); return Promise.reject(new Error('Acesso negado')); }
+        if (!response.ok) { const errorData = await response.json().catch(() => ({ erro: 'Erro desconhecido.' })); throw new Error(errorData.erro); }
         return await response.json();
-      } catch (error) {
-        throw new Error(error.message || 'Erro de conexão.');
-      }
+      } catch (error) { throw new Error(error.message || 'Erro de conexão.'); }
     }
 
-    // --- NOVA FUNÇÃO PARA VERIFICAR LOGIN E ATUALIZAR HEADER ---
     async function verificarStatusLogin() {
         const nomeUsuarioSpan = document.getElementById('nome-usuario-logado');
-        if (!nomeUsuarioSpan) return; // Se não houver o span, estamos na página de login
-
+        if (!nomeUsuarioSpan) return;
         try {
             const userInfo = await buscarDados('/api/user/info');
             if (userInfo && userInfo.nome) {
                 nomeUsuarioSpan.textContent = `Olá, ${userInfo.nome}`;
+                userPermission = userInfo.permissao;
+                document.body.classList.add(userPermission === 'adm' ? 'role-adm' : 'role-operador');
+                if (userPermission !== 'adm') {
+                    const navCadastros = document.getElementById('nav-cadastros');
+                    const navDashboard = document.getElementById('nav-dashboard');
+                    if (navCadastros) navCadastros.style.display = 'none';
+                    if (navDashboard) navDashboard.style.display = 'none';
+                }
             } else {
                 window.location.href = '/logout';
             }
@@ -41,24 +39,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // --- LÓGICA DE INICIALIZAÇÃO ---
     const path = window.location.pathname;
-    
     if (!path.includes('/login')) {
-        // Se não for a página de login, verifica o status do login primeiro.
         verificarStatusLogin().then(() => {
-            // Depois de verificar, inicializa a lógica da página correta
-            if (path.includes('/cadastros')) {
-                initCadastros();
-            } else if (path.includes('/dashboard')) {
-                initDashboard();
-            } else { // Página padrão é apontamentos
-                initApontamentos();
-            }
+            if (path.includes('/cadastros')) initCadastros();
+            else if (path.includes('/dashboard')) initDashboard();
+            else initApontamentos();
         });
     }
 
-    // --- INICIALIZAÇÃO DA PÁGINA DE APONTAMENTOS ---
     function initApontamentos() {
         const hdnApontamentoId = document.getElementById('hdnApontamentoId'); const txtMatricula = document.getElementById('txtMatriculaOperador'); const txtNomeOperador = document.getElementById('txtNomeOperador'); const txtIdProduto = document.getElementById('txtIdProduto'); const txtCodEntrada = document.getElementById('txtCodEntrada'); const txtDescricao = document.getElementById('txtDescricao'); const txtCodSaida = document.getElementById('txtCodSaida'); const txtBeneficiamento = document.getElementById('txtBeneficiamento'); const txtUnidade = document.getElementById('txtUnidade'); const txtIdSetor = document.getElementById('txtIdSetor'); const txtNomeSetor = document.getElementById('txtNomeSetor'); const txtIdMotivo = document.getElementById('txtIdMotivo'); const txtNomeMotivo = document.getElementById('txtNomeMotivo'); const txtQuantidade = document.getElementById('txtQuantidadeRetrabalho'); const btnSalvarApontamento = document.getElementById('btnSalvarApontamento'); const btnLimparFormulario = document.getElementById('btnLimparFormulario'); const corpoTabela = document.getElementById('corpoTabelaApontamentos'); const infoPagina = document.getElementById('infoPagina'); const btnPaginaAnterior = document.getElementById('btnPaginaAnterior'); const btnProximaPagina = document.getElementById('btnProximaPagina'); const filtroDataDe = document.getElementById('txtFiltroDataDe'); const filtroDataAte = document.getElementById('txtFiltroDataAte'); const filtroIdProduto = document.getElementById('txtFiltroIdProduto'); const btnAplicarFiltro = document.getElementById('btnAplicarFiltro'); const btnLimparFiltros = document.getElementById('btnLimparFiltros'); const btnExportarCSV = document.getElementById('btnExportarCSV');
         let estadoPagina = { atual: 1, itensPorPagina: 20 }, filtrosAtuais = {}, modoEdicao = false;
@@ -71,7 +60,7 @@ document.addEventListener('DOMContentLoaded', function() {
         async function buscarMotivoPorId() { if (txtNomeMotivo) txtNomeMotivo.value = ''; if (!txtIdMotivo.value) return; try { const data = await buscarDados(`/api/motivo/${txtIdMotivo.value.trim()}`); txtNomeMotivo.value = data.motivo; focarProximoCampo(txtIdMotivo); } catch (error) { mostrarNotificacao(error.message, 'erro'); } }
         async function salvarApontamento() { if (!txtNomeOperador.value || !txtCodEntrada.value || !txtNomeSetor.value || !txtNomeMotivo.value || !txtQuantidade.value || parseFloat(txtQuantidade.value) <= 0) { mostrarNotificacao("Preencha todos os campos corretamente.", "erro"); return; } const dados = { matriculaOperador: txtMatricula.value.trim(), codEntrada: txtCodEntrada.value.trim(), quantidade: parseFloat(txtQuantidade.value), setorId: txtIdSetor.value.trim(), motivoId: parseInt(txtIdMotivo.value) }; const idEdicao = hdnApontamentoId.value; const ehUpdate = idEdicao && modoEdicao; const url = ehUpdate ? `/api/apontamentos/retrabalho/${idEdicao}` : '/api/apontamentos/retrabalho'; const method = ehUpdate ? 'PUT' : 'POST'; fetch(url, { method: method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dados) }).then(response => { if (!response.ok) { return response.json().then(err => { throw new Error(err.erro || "Erro do servidor") }); } return response.json(); }).then(resultado => { mostrarNotificacao(resultado.mensagem, 'sucesso'); limparFormularioApontamento(); carregarApontamentosRetrabalho(ehUpdate ? estadoPagina.atual : 1); }).catch(e => { console.error("Falha ao salvar:", e); mostrarNotificacao(e.message, 'erro'); }); }
         async function carregarApontamentoParaEdicao(id) { try { const data = await buscarDados(`/api/apontamento/retrabalho/${id}`); hdnApontamentoId.value = data.id; txtMatricula.value = data.matricula_operador; txtNomeOperador.value = data.nome_operador; txtIdProduto.value = data.produto_id; txtCodEntrada.value = data.cod_entrada; txtDescricao.value = data.descricao_produto; txtCodSaida.value = data.cod_saida; txtBeneficiamento.value = data.beneficiamento; txtUnidade.value = data.und; txtIdSetor.value = data.setor_codigo; txtNomeSetor.value = data.nome_setor; txtIdMotivo.value = data.motivo_retrabalho_id; txtNomeMotivo.value = data.motivo_retrabalho; txtQuantidade.value = data.quantidade; modoEdicao = true; document.querySelector('#secao-cadastro-retrabalho h2').textContent = `Editando Apontamento #${id}`; btnSalvarApontamento.textContent = 'Salvar Alterações'; btnLimparFormulario.textContent = 'Cancelar Edição'; window.scrollTo({ top: 0, behavior: 'smooth' }); txtMatricula.focus(); } catch (error) { mostrarNotificacao(error.message, 'erro'); } }
-        async function carregarApontamentosRetrabalho(pagina = 1) { if (!corpoTabela) return; corpoTabela.innerHTML = '<tr><td colspan="10" class="celula-mensagem-tabela">Carregando...</td></tr>'; filtrosAtuais = { dataDe: filtroDataDe.value, dataAte: filtroDataAte.value, idProduto: filtroIdProduto.value.trim() }; const params = new URLSearchParams({ page: pagina, per_page: estadoPagina.itensPorPagina }); for(const key in filtrosAtuais) { if(filtrosAtuais[key]) { params.append(key, filtrosAtuais[key]); } } try { const data = await buscarDados(`/api/apontamentos/retrabalho?${params.toString()}`); corpoTabela.innerHTML = ''; if (!data.items || data.items.length === 0) { corpoTabela.innerHTML = '<tr><td colspan="10" class="celula-mensagem-tabela">Nenhum apontamento encontrado.</td></tr>'; } else { data.items.forEach(ap => { corpoTabela.innerHTML += `<tr><td>${ap.data||''}</td><td>${ap.hora||''}</td><td>${ap.turno||''}</td><td>${ap.matricula_operador} - ${ap.nome_operador||''}</td><td>${ap.cod_entrada||''}</td><td>${ap.descricao_produto||''}</td><td>${ap.nome_setor||''}</td><td>${ap.motivo_retrabalho||''}</td><td>${ap.quantidade}</td><td class="acoes-tabela"><button class="btn-acao-tabela btn-editar" data-id="${ap.id}">Editar</button><button class="btn-acao-tabela btn-excluir" data-id="${ap.id}">Excluir</button></td></tr>`; }); } if(infoPagina) infoPagina.textContent = `Página ${data.current_page} de ${data.total_pages}`; if(btnPaginaAnterior) btnPaginaAnterior.disabled = !data.has_prev; if(btnProximaPagina) btnProximaPagina.disabled = !data.has_next; estadoPagina.atual = data.current_page; } catch (e) { corpoTabela.innerHTML = `<tr><td colspan="10" class="celula-mensagem-tabela">Falha ao carregar o histórico.</td></tr>`; mostrarNotificacao(e.message, 'erro'); } }
+        async function carregarApontamentosRetrabalho(pagina = 1) { if (!corpoTabela) return; corpoTabela.innerHTML = '<tr><td colspan="10" class="celula-mensagem-tabela">Carregando...</td></tr>'; filtrosAtuais = { dataDe: filtroDataDe.value, dataAte: filtroDataAte.value, idProduto: filtroIdProduto.value.trim() }; const params = new URLSearchParams({ page: pagina, per_page: estadoPagina.itensPorPagina }); for(const key in filtrosAtuais) { if(filtrosAtuais[key]) { params.append(key, filtrosAtuais[key]); } } try { const data = await buscarDados(`/api/apontamentos/retrabalho?${params.toString()}`); corpoTabela.innerHTML = ''; if (!data.items || data.items.length === 0) { corpoTabela.innerHTML = '<tr><td colspan="10" class="celula-mensagem-tabela">Nenhum apontamento encontrado.</td></tr>'; } else { data.items.forEach(ap => { corpoTabela.innerHTML += `<tr><td>${ap.data||''}</td><td>${ap.hora||''}</td><td>${ap.turno||''}</td><td>${ap.matricula_operador} - ${ap.nome_operador||''}</td><td>${ap.cod_entrada||''}</td><td>${ap.descricao_produto||''}</td><td>${ap.nome_setor||''}</td><td>${ap.motivo_retrabalho||''}</td><td>${ap.quantidade}</td><td class="acoes-tabela role-adm"><button class="btn-acao-tabela btn-editar" data-id="${ap.id}">Editar</button><button class="btn-acao-tabela btn-excluir" data-id="${ap.id}">Excluir</button></td></tr>`; }); } if(infoPagina) infoPagina.textContent = `Página ${data.current_page} de ${data.total_pages}`; if(btnPaginaAnterior) btnPaginaAnterior.disabled = !data.has_prev; if(btnProximaPagina) btnProximaPagina.disabled = !data.has_next; estadoPagina.atual = data.current_page; } catch (e) { corpoTabela.innerHTML = `<tr><td colspan="10" class="celula-mensagem-tabela">Falha ao carregar o histórico.</td></tr>`; mostrarNotificacao(e.message, 'erro'); } }
         async function exportarParaCSV() { const params = new URLSearchParams(filtrosAtuais); mostrarNotificacao('Gerando arquivo CSV...', 'info'); try { const response = await fetch(`/api/apontamentos/exportar?${params.toString()}`); if (!response.ok) throw new Error('Falha ao gerar o arquivo.'); const blob = await response.blob(); const url = window.URL.createObjectURL(blob); const a = document.createElement('a'); a.style.display = 'none'; a.href = url; const disposition = response.headers.get('Content-Disposition'); let filename = 'apontamentos.csv'; if (disposition && disposition.includes('attachment')) { const filenameMatch = disposition.match(/filename="?([^"]+)"?/); if (filenameMatch && filenameMatch[1]) { filename = filenameMatch[1]; } } a.download = filename; document.body.appendChild(a); a.click(); window.URL.revokeObjectURL(url); a.remove(); } catch(error) { mostrarNotificacao('Erro ao gerar o arquivo CSV.', 'erro'); } }
         function configurarFluxoEnter() { const campos = [txtMatricula, txtIdProduto, txtIdSetor, txtIdMotivo, txtQuantidade, btnSalvarApontamento]; campos.forEach((campo) => { if (campo && campo.id !== 'btnSalvarApontamento') { campo.addEventListener('keydown', function(event) { if (event.key === 'Enter') { event.preventDefault(); campo.blur(); } }); } }); if(txtQuantidade) { txtQuantidade.addEventListener('keydown', (event) => { if(event.key === 'Enter') { event.preventDefault(); btnSalvarApontamento.focus(); btnSalvarApontamento.click(); } }); } }
         if(txtMatricula) txtMatricula.addEventListener('blur', buscarOperador);
@@ -90,7 +79,6 @@ document.addEventListener('DOMContentLoaded', function() {
         configurarFluxoEnter();
     }
     
-    // --- INICIALIZAÇÃO DA PÁGINA DE CADASTROS ---
     function initCadastros() {
         const abasBtn = document.querySelectorAll('.aba-btn'); const conteudosAbas = document.querySelectorAll('.conteudo-aba');
         abasBtn.forEach(btn => {
@@ -127,11 +115,9 @@ document.addEventListener('DOMContentLoaded', function() {
         formMotivo.addEventListener('submit', async (e) => { e.preventDefault(); const idOriginal = hdnIdOriginalMotivo.value; const ehEdicao = !!idOriginal; const url = ehEdicao ? `/api/motivos/${idOriginal}` : '/api/motivos'; const method = ehEdicao ? 'PUT' : 'POST'; try { const response = await fetch(url, { method: method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: txtMotivoId.value, motivo: txtMotivoDescricao.value, id_novo: txtMotivoId.value }) }); const resultado = await response.json(); mostrarNotificacao(resultado.mensagem || resultado.erro, response.ok ? 'sucesso' : 'erro'); if (response.ok) { limparFormMotivo(); carregarMotivos(); } } catch (error) { mostrarNotificacao('Erro de conexão.', 'erro'); } });
         tabelaMotivos.addEventListener('click', (e) => { if (e.target.classList.contains('btn-editar')) { const id = e.target.dataset.id; const motivo = e.target.dataset.motivo; hdnIdOriginalMotivo.value = id; txtMotivoId.value = id; txtMotivoDescricao.value = motivo; tituloFormMotivo.textContent = `Editando Motivo #${id}`; btnSalvarMotivo.textContent = 'Salvar'; btnCancelarMotivo.classList.remove('oculto'); txtMotivoId.readOnly = true; } if (e.target.classList.contains('btn-excluir')) { const id = e.target.dataset.id; if (confirm(`Tem certeza?`)) { fetch(`/api/motivos/${id}`, { method: 'DELETE' }).then(r => r.json()).then(res => { mostrarNotificacao(res.mensagem || res.erro, res.erro ? 'erro' : 'sucesso'); carregarMotivos(); }); } } });
         if(btnCancelarMotivo) btnCancelarMotivo.addEventListener('click', limparFormMotivo);
-        
         carregarOperadores();
     }
     
-    // --- INICIALIZAÇÃO DA PÁGINA DO DASHBOARD ---
     function initDashboard() {
         if (typeof ChartDataLabels === 'undefined') { console.error("ChartDataLabels não foi carregado."); return; }
         Chart.register(ChartDataLabels);
@@ -148,6 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
             else if (periodo === 'personalizado') { if (!elementos.dataDe.value || !elementos.dataAte.value) { mostrarNotificacao('Selecione as datas.', 'aviso'); return; } dataDeStr = elementos.dataDe.value; dataAteStr = elementos.dataAte.value; }
             try {
                 const data = await buscarDados(`/api/dashboard?dataDe=${dataDeStr}&dataAte=${dataAteStr}`);
+                if (!data) return; // Se acesso for negado, data será undefined
                 elementos.kpiQtdPecas.textContent = parseFloat(data.kpis.quantidade_pecas || 0).toLocaleString('pt-BR');
                 elementos.kpiQtdKg.textContent = parseFloat(data.kpis.quantidade_kg || 0).toLocaleString('pt-BR');
                 elementos.kpiValorTotal.textContent = parseFloat(data.kpis.valor_total || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -160,7 +147,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 atualizarGrafico(charts, 'graficoTopProdutos', { tipo: 'bar', dados: data.top_produtos, dataKey: 'total', labelKey: 'cod_entrada', cor: '#2ecc71', comLinha: true, formato: 'numero' });
                 atualizarGrafico(charts, 'graficoTopMotivos', { tipo: 'bar', dados: data.top_motivos, dataKey: 'total', labelKey: 'motivo', cor: '#e74c3c', comLinha: true, formato: 'numero' });
                 atualizarGrafico(charts, 'graficoValorSetor', { tipo: 'bar', dados: data.valor_por_setor, dataKey: 'total_valor', labelKey: 'nome', cor: '#9b59b6', comLinha: true, formato: 'moeda' });
-            } catch (error) { mostrarNotificacao(error.message, 'erro'); }
+            } catch (error) { console.error(error.message); }
         }
         function atualizarGrafico(chartInstances, canvasId, config) {
             const ctx = document.getElementById(canvasId); if (!ctx) return;
